@@ -1,8 +1,6 @@
 # remove comma and replace Nan values with zero and cast as new datatype
-from numpy import *
 
 def type_col(df,col,typecast):
-  from numpy import *
   df[col]=df[col].str.replace(',', '').replace('-','').replace(np.Nan,0).replace([None],0).astype(typecast)
   return df
 
