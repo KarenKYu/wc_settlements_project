@@ -78,7 +78,39 @@ def clean_cols(df):
 
 def clean_zip(col):
   return pd.to_numeric(col, errors='coerce',downcast='signed')
+ 
+def split_datecol(df,datecol):
+  df[f'{datecol}_month']= df[f'{datecol}'].dt.month
+  df[f'{datecol}_day']= df[f'{datecol}'].dt.day
+  df[f'{datecol}_year']= df[f'{datecol}'].dt.year
+  return pd.concat([df[f'{datecol}_month'],df[f'{datecol}_day'],df[f'{datecol}_year']], axis=1)
 
+def split_datetime_df(df):
+  datetime_cols = df.select_dtypes(include='datetime').columns
+  splitdates_list = [split_datecol(df,col) for col in datetime_cols]
+  return pd.concat(splitdates_list, axis=1).fillna(0)
+
+def transform_obj(df):
+  obj_df = df.select_dtypes(include='object')
+  objcols = obj_df.columns.tolist() #set(list(obj_df.columns))
+  objcols.remove('Final_disposition')
+  stepcols = [([col], [MultiLabelBinarizer()]) for col in objcols]
+  steps = [(['Final_disposition'],LabelEncoder())]+stepcols
+  obj_mapper = DataFrameMapper(steps, default = None, df_out = True)
+  return obj_mapper.fit_transform(obj_df)
+
+def transform_num(df):
+  num_df = df.select_dtypes(exclude= ['object', 'datetime']).fillna(0)
+  numcols = num_df.columns.tolist()
+  numsteps = [([col],SimpleImputer(strategy='most_frequent')) for col in numcols]
+  num_mapper =  DataFrameMapper(numsteps, input_df=True, df_out=True)
+  return num_mapper.fit_transform(num_df)
+
+def tranform_df(df):
+  split_datedf = split_datetime_df(df)
+  transformed_obj = transform_obj(df)
+  transformed_num = transform_num(df)
+  return pd.concat([transformed_num, transformed_obj, split_datedf],axis=1).sample(frac=1).reset_index(drop=True)
 # # remove comma and replace Nan values with zero and cast as new datatype
 # def type_col(df,col,typecast):
 #     df[col]=df[col].str.replace(',', '').replace('-','').replace(np.NaN,0).replace([None],0).astype(typecast)
